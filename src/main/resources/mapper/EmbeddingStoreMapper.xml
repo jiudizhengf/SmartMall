@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.smartmallbackend.mapper.EmbeddingStoreMapper">
+
+    <resultMap id="BaseResultMap" type="org.example.smartmallbackend.entity.EmbeddingStore">
+            <id property="embeddingId" column="embedding_id" />
+            <result property="embedding" column="embedding" />
+            <result property="text" column="text" />
+            <result property="metadata" column="metadata" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        embedding_id,embedding,text,metadata
+    </sql>
+</mapper>

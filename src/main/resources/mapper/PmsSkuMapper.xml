@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.smartmallbackend.mapper.PmsSkuMapper">
+
+    <resultMap id="BaseResultMap" type="org.example.smartmallbackend.entity.PmsSku">
+            <id property="id" column="id" />
+            <result property="spuId" column="spu_id" />
+            <result property="skuCode" column="sku_code" />
+            <result property="name" column="name" />
+            <result property="price" column="price" />
+            <result property="stock" column="stock" />
+            <result property="isDeleted" column="is_deleted" />
+            <result property="specData" column="spec_data" />
+            <result property="picUrl" column="pic_url" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,spu_id,sku_code,name,price,stock,
+        is_deleted,spec_data,pic_url
+    </sql>
+</mapper>
