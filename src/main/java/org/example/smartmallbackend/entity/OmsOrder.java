@@ -46,9 +46,34 @@ public class OmsOrder implements Serializable {
     private BigDecimal payAmount;
 
     /**
-     * 订单状态：0-待付款，1-待发货，2-已发货，3-已完成，4-已取消
+     * 运费
+     */
+    private BigDecimal freightAmount;
+
+    /**
+     * 优惠金额
+     */
+    private BigDecimal discountAmount;
+
+    /**
+     * 订单状态：0-待付款，1-待发货，2-已发货，3-已完成，4-已取消，5-售后中，6-退款中，7-已退款
      */
     private Integer status;
+
+    /**
+     * 支付状态：0-未支付，1-支付中，2-已支付，3-支付失败，4-已退款
+     */
+    private Integer payStatus;
+
+    /**
+     * 支付方式：1-微信支付，2-支付宝，3-银联，4-余额支付
+     */
+    private Integer payType;
+
+    /**
+     * 第三方支付交易号
+     */
+    private String paymentTransactionNo;
 
     /**
      * 收货人姓名
@@ -76,9 +101,29 @@ public class OmsOrder implements Serializable {
     private LocalDateTime deliveryTime;
 
     /**
+     * 收货时间
+     */
+    private LocalDateTime receiveTime;
+
+    /**
+     * 完成时间
+     */
+    private LocalDateTime finishTime;
+
+    /**
+     * 备注
+     */
+    private String remark;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createTime;
+
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updateTime;
 
     /**
      * 逻辑删除：0-未删除，1-已删除
