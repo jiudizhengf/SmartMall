@@ -1,10 +1,12 @@
 package org.example.smartmallbackend.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.example.smartmallbackend.handler.PostgresJsonbTypeHandler;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -16,7 +18,7 @@ import java.math.BigDecimal;
  * @TableName pms_sku
  */
 @Schema(description = "商品SKU实体")
-@TableName(value = "pms_sku")
+@TableName(value = "pms_sku",autoResultMap = true)
 @Data
 public class PmsSku implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -62,6 +64,7 @@ public class PmsSku implements Serializable {
      * 规格数据（JSON格式）
      */
     @Schema(description = "规格数据（JSON格式）", example = "{\"color\":\"黑色\",\"storage\":\"256GB\"}")
+    @TableField(typeHandler = PostgresJsonbTypeHandler.class)
     private String specData;
 
     /**

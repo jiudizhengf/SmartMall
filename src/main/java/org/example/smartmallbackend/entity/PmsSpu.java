@@ -26,7 +26,6 @@ public class PmsSpu implements Serializable {
      * 主键ID
      */
     @Schema(description = "主键ID", example = "1")
-    @TableId
     private Long id;
 
     /**
