@@ -111,7 +111,7 @@ public class OmsOrder implements Serializable {
      * 收货时间
      */
     @Schema(description = "收货时间", example = "2023-01-05T15:00:00")
-    private LocalDateTime receiveTime;
+    private LocalDateTime receivedTime;
 
     /**
      * 完成时间

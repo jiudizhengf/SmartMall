@@ -238,7 +238,7 @@ public class OrderServiceImpl implements IOrderService {
 
         // 更新订单状态
         order.setStatus(OrderStatus.COMPLETED.getCode());
-        order.setReceiveTime(LocalDateTime.now());
+        order.setReceivedTime(LocalDateTime.now());
         order.setFinishTime(LocalDateTime.now());
         omsOrderService.updateById(order);
     }

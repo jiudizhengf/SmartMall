@@ -19,7 +19,7 @@
             <result property="receiverAddress" column="receiver_address" />
             <result property="paymentTime" column="payment_time" />
             <result property="deliveryTime" column="delivery_time" />
-            <result property="receiveTime" column="receive_time" />
+            <result property="receivedTime" column="received_time" />
             <result property="finishTime" column="finish_time" />
             <result property="remark" column="remark" />
             <result property="createTime" column="create_time" />
@@ -29,7 +29,7 @@
 
     <sql id="Base_Column_List">
         id,order_sn,user_id,total_amount,pay_amount,status,pay_status,pay_type,payment_transaction_no,
-        receiver_name,receiver_phone,receiver_address,payment_time,delivery_time,receive_time,finish_time,
+        receiver_name,receiver_phone,receiver_address,payment_time,delivery_time,received_time,finish_time,
         remark,create_time,update_time,is_deleted
     </sql>
 </mapper>

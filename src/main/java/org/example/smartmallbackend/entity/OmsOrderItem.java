@@ -17,7 +17,6 @@ import java.math.BigDecimal;
  * @TableName oms_order_item
  */
 @Schema(description = "订单明细实体")
-@TableName(value = "oms_order_item",autoResultMap = true)
 @Data
 public class OmsOrderItem implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -81,6 +80,5 @@ public class OmsOrderItem implements Serializable {
      * SKU规格属性（JSON格式）
      */
     @Schema(description = "SKU规格属性（JSON格式）", example = "{\"color\":\"黑色\",\"storage\":\"256GB\"}")
-    @TableField(typeHandler = PostgresJsonbTypeHandler.class)
     private String skuAttrs;
 }

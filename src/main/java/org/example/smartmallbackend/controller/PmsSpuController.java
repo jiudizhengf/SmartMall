@@ -151,6 +151,9 @@ public class PmsSpuController {
     public Result<?> publish(@Parameter(description = "SPU ID", required = true) @PathVariable Long id) {
         PmsSpu spu = new PmsSpu();
         spu.setId(id);
+        if(spu.getPublishStatus() == 1) {
+            return Result.success("商品已上架");
+        }
         spu.setPublishStatus(1);
         boolean success = pmsSpuService.updateById(spu);
         return success ? Result.success("上架成功") : Result.error("上架失败");
@@ -167,6 +170,9 @@ public class PmsSpuController {
     public Result<?> unpublish(@Parameter(description = "SPU ID", required = true) @PathVariable Long id) {
         PmsSpu spu = new PmsSpu();
         spu.setId(id);
+        if(spu.getPublishStatus() == 0) {
+            return Result.success("商品已下架");
+        }
         spu.setPublishStatus(0);
         boolean success = pmsSpuService.updateById(spu);
         return success ? Result.success("下架成功") : Result.error("下架失败");
