@@ -97,8 +97,6 @@ public class OrderServiceImpl implements IOrderService {
         order.setUserId(dto.getUserId());
         order.setTotalAmount(dto.getTotalAmount());
         order.setPayAmount(dto.getPayAmount());
-        order.setFreightAmount(BigDecimal.ZERO);
-        order.setDiscountAmount(dto.getTotalAmount().subtract(dto.getPayAmount()));
         order.setStatus(OrderStatus.PENDING_PAYMENT.getCode());
         order.setPayStatus(PayStatus.UNPAID.getCode());
         order.setReceiverName(dto.getReceiverName());

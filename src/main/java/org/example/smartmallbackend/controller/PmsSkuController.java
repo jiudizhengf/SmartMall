@@ -3,6 +3,9 @@ package org.example.smartmallbackend.controller;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.dto.PmsSkuSaveDTO;
 import org.example.smartmallbackend.dto.PmsSkuUpdateDTO;
@@ -21,6 +24,7 @@ import java.util.List;
  * @description 商品SKU的增删改查接口，包含库存管理
  */
 @Validated
+@Tag(name = "商品SKU管理", description = "商品SKU的增删改查接口，包含库存管理")
 @RestController
 @RequestMapping("/api/pms/sku")
 public class PmsSkuController {
@@ -38,13 +42,14 @@ public class PmsSkuController {
      * @param skuCode SKU编码
      * @return 分页结果
      */
+    @Operation(summary = "分页查询商品SKU列表", description = "支持按SPU ID、SKU名称、SKU编码等条件筛选")
     @GetMapping("/page")
     public Result<Page<PmsSku>> page(
-            @RequestParam(defaultValue = "1") Long current,
-            @RequestParam(defaultValue = "10") Long size,
-            @RequestParam(required = false) Long spuId,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String skuCode) {
+            @Parameter(description = "当前页码", example = "1") @RequestParam(defaultValue = "1") Long current,
+            @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") Long size,
+            @Parameter(description = "SPU ID") @RequestParam(required = false) Long spuId,
+            @Parameter(description = "SKU名称（模糊查询）") @RequestParam(required = false) String name,
+            @Parameter(description = "SKU编码") @RequestParam(required = false) String skuCode) {
 
         Page<PmsSku> page = new Page<>(current, size);
         LambdaQueryWrapper<PmsSku> wrapper = new LambdaQueryWrapper<>();
@@ -64,8 +69,9 @@ public class PmsSkuController {
      * @param spuId SPU ID
      * @return SKU列表
      */
+    @Operation(summary = "根据SPU ID查询SKU列表", description = "查询指定SPU下的所有SKU")
     @GetMapping("/list/by-spu/{spuId}")
-    public Result<List<PmsSku>> listBySpuId(@PathVariable Long spuId) {
+    public Result<List<PmsSku>> listBySpuId(@Parameter(description = "SPU ID", required = true) @PathVariable Long spuId) {
         LambdaQueryWrapper<PmsSku> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PmsSku::getSpuId, spuId);
         List<PmsSku> list = pmsSkuService.list(wrapper);
@@ -78,6 +84,7 @@ public class PmsSkuController {
      * @param id SKU ID
      * @return SKU详情
      */
+    @Operation(summary = "根据ID查询商品SKU详情", description = "通过SKU主键ID查询商品SKU完整信息")
     @GetMapping("/{id}")
     public Result<PmsSku> getById(@PathVariable Long id) {
         PmsSku sku = pmsSkuService.getById(id);
@@ -93,6 +100,7 @@ public class PmsSkuController {
      * @param dto 商品SKU信息
      * @return 操作结果
      */
+    @Operation(summary = "新增商品SKU", description = "添加新的商品SKU信息")
     @PostMapping
     public Result<?> save(@RequestBody @Validated PmsSkuSaveDTO dto) {
         // 校验SKU编码唯一性
@@ -114,6 +122,7 @@ public class PmsSkuController {
      * @param dto 商品SKU信息
      * @return 操作结果
      */
+    @Operation(summary = "更新商品SKU", description = "修改商品SKU信息")
     @PutMapping
     public Result<?> update(@RequestBody @Validated PmsSkuUpdateDTO dto) {
         // 校验SKU编码唯一性（排除自身）
@@ -138,6 +147,7 @@ public class PmsSkuController {
      * @param id SKU ID
      * @return 操作结果
      */
+    @Operation(summary = "删除商品SKU", description = "根据ID删除商品SKU")
     @DeleteMapping("/{id}")
     public Result<?> delete(@PathVariable Long id) {
         boolean success = pmsSkuService.removeById(id);
@@ -150,6 +160,7 @@ public class PmsSkuController {
      * @param ids SKU ID列表
      * @return 操作结果
      */
+    @Operation(summary = "批量删除商品SKU", description = "根据ID列表批量删除商品SKU")
     @DeleteMapping("/batch")
     public Result<?> deleteBatch(@RequestBody List<Long> ids) {
         boolean success = pmsSkuService.removeByIds(ids);
@@ -163,6 +174,7 @@ public class PmsSkuController {
      * @param quantity 增加数量
      * @return 操作结果
      */
+    @Operation(summary = "增加库存", description = "为指定SKU增加库存数量")
     @PutMapping("/stock/add/{id}")
     public Result<?> addStock(@PathVariable Long id, @RequestParam Integer quantity) {
         if (quantity == null || quantity <= 0) {
@@ -186,6 +198,7 @@ public class PmsSkuController {
      * @param quantity 减少数量
      * @return 操作结果
      */
+    @Operation(summary = "减少库存", description = "为指定SKU减少库存数量")
     @PutMapping("/stock/reduce/{id}")
     public Result<?> reduceStock(@PathVariable Long id, @RequestParam Integer quantity) {
         if (quantity == null || quantity <= 0) {
@@ -213,6 +226,7 @@ public class PmsSkuController {
      * @param quantity 库存数量
      * @return 操作结果
      */
+    @Operation(summary = "设置库存", description = "为指定SKU设置库存数量")
     @PutMapping("/stock/set/{id}")
     public Result<?> setStock(@PathVariable Long id, @RequestParam Integer quantity) {
         if (quantity == null || quantity < 0) {
@@ -232,6 +246,7 @@ public class PmsSkuController {
      * @param skuCode SKU编码
      * @return SKU详情
      */
+    @Operation(summary = "根据SKU编码查询", description = "通过SKU编码查询商品SKU详情")
     @GetMapping("/code/{skuCode}")
     public Result<PmsSku> getBySkuCode(@PathVariable String skuCode) {
         LambdaQueryWrapper<PmsSku> wrapper = new LambdaQueryWrapper<>();

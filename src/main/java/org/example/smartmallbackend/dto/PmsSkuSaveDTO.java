@@ -1,5 +1,6 @@
 package org.example.smartmallbackend.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
  *
  * @author smart-mall-backend
  */
+@Schema(description = "商品SKU库存新增DTO")
 @Data
 public class PmsSkuSaveDTO implements Serializable {
     private static final long serialVersionUID = 1L;

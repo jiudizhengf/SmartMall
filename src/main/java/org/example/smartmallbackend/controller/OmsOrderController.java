@@ -2,6 +2,9 @@ package org.example.smartmallbackend.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.dto.OmsOrderSaveDTO;
 import org.example.smartmallbackend.dto.OmsOrderUpdateDTO;
@@ -26,7 +29,9 @@ import java.util.List;
  * @author smart-mall-backend
  * @description 订单管理接口，包含下单、支付、发货、退款等完整流程
  */
+
 @Validated
+@Tag(name="订单管理", description = "订单相关接口")
 @RestController
 @RequestMapping("/api/oms/order")
 public class OmsOrderController {
@@ -50,13 +55,14 @@ public class OmsOrderController {
      * @param orderSn 订单编号
      * @return 分页结果
      */
+    @Operation(summary = "分页查询订单列表", description = "支持按用户ID、订单状态、订单编号等条件筛选")
     @GetMapping("/page")
     public Result<Page<OmsOrder>> page(
-            @RequestParam(defaultValue = "1") Long current,
-            @RequestParam(defaultValue = "10") Long size,
-            @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) String orderSn) {
+            @Parameter(description = "当前页码", example = "1") @RequestParam(defaultValue = "1") Long current,
+            @Parameter(description = "每页大小", example = "10") @RequestParam(defaultValue = "10") Long size,
+            @Parameter(description = "用户ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "订单状态：0-待付款，1-待发货，2-已发货，3-已完成，4-已取消") @RequestParam(required = false) Integer status,
+            @Parameter(description = "订单编号") @RequestParam(required = false) String orderSn) {
 
         Page<OmsOrder> page = new Page<>(current, size);
         LambdaQueryWrapper<OmsOrder> wrapper = new LambdaQueryWrapper<>();
@@ -76,8 +82,9 @@ public class OmsOrderController {
      * @param id 订单ID
      * @return 订单详情
      */
+    @Operation(summary = "根据ID查询订单详情", description = "通过订单主键ID查询订单完整信息")
     @GetMapping("/{id}")
-    public Result<OmsOrder> getById(@PathVariable Long id) {
+    public Result<OmsOrder> getById(@Parameter(description = "订单ID", required = true) @PathVariable Long id) {
         OmsOrder order = omsOrderService.getById(id);
         if (order == null) {
             return Result.error("订单不存在");
@@ -91,8 +98,9 @@ public class OmsOrderController {
      * @param orderSn 订单编号
      * @return 订单详情
      */
+    @Operation(summary = "根据订单编号查询", description = "通过订单编号查询订单完整信息")
     @GetMapping("/sn/{orderSn}")
-    public Result<OmsOrder> getByOrderSn(@PathVariable String orderSn) {
+    public Result<OmsOrder> getByOrderSn(@Parameter(description = "订单编号", required = true) @PathVariable String orderSn) {
         LambdaQueryWrapper<OmsOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OmsOrder::getOrderSn, orderSn);
         OmsOrder order = omsOrderService.getOne(wrapper);
@@ -108,8 +116,9 @@ public class OmsOrderController {
      * @param orderId 订单ID
      * @return 订单明细列表
      */
+    @Operation(summary = "查询订单明细", description = "根据订单ID查询订单明细列表")
     @GetMapping("/items/{orderId}")
-    public Result<List<OmsOrderItem>> getOrderItems(@PathVariable Long orderId) {
+    public Result<List<OmsOrderItem>> getOrderItems(@Parameter(description = "订单ID", required = true) @PathVariable Long orderId) {
         LambdaQueryWrapper<OmsOrderItem> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OmsOrderItem::getOrderId, orderId);
         List<OmsOrderItem> items = omsOrderItemService.list(wrapper);
@@ -127,6 +136,7 @@ public class OmsOrderController {
      * @param dto 订单信息
      * @return 订单编号
      */
+    @Operation(summary = "创建订单", description = "校验商品信息和库存，锁定库存，校验订单金额，创建订单和订单明细")
     @PostMapping("/create")
     public Result<String> createOrder(@RequestBody @Validated OmsOrderSaveDTO dto) {
         try {
@@ -145,10 +155,11 @@ public class OmsOrderController {
      * @param payType 支付方式（1-微信，2-支付宝，3-银联，4-余额）
      * @return 支付参数
      */
+    @Operation(summary = "发起支付", description = "校验订单状态后返回支付参数")
     @PostMapping("/pay/initiate")
     public Result<?> initiatePayment(
-            @RequestParam String orderSn,
-            @RequestParam Integer payType) {
+            @Parameter(description = "订单编号", required = true) @RequestParam String orderSn,
+            @Parameter(description = "支付方式：1-微信，2-支付宝，3-银联，4-余额", required = true) @RequestParam Integer payType) {
         try {
             orderService.initiatePayment(orderSn, payType);
             // TODO: 返回实际的支付参数
@@ -167,10 +178,11 @@ public class OmsOrderController {
      * @param transactionNo 第三方支付交易号
      * @return 处理结果
      */
+    @Operation(summary = "支付回调", description = "第三方支付平台支付成功后调用此接口，包含幂等性处理")
     @PostMapping("/pay/callback")
     public Result<String> paymentCallback(
-            @RequestParam String orderSn,
-            @RequestParam String transactionNo) {
+            @Parameter(description = "订单编号", required = true) @RequestParam String orderSn,
+            @Parameter(description = "第三方支付交易号", required = true) @RequestParam String transactionNo) {
         try {
             orderService.handlePaymentSuccess(orderSn, transactionNo);
             return Result.success("支付回调处理成功");
@@ -186,8 +198,9 @@ public class OmsOrderController {
      * @param orderSn 订单编号
      * @return 操作结果
      */
+    @Operation(summary = "取消订单", description = "取消订单并自动恢复库存")
     @PutMapping("/cancel")
-    public Result<?> cancelOrder(@RequestParam String orderSn) {
+    public Result<?> cancelOrder(@Parameter(description = "订单编号", required = true) @RequestParam String orderSn) {
         try {
             orderService.cancelOrder(orderSn);
             return Result.success("订单取消成功");
@@ -203,8 +216,9 @@ public class OmsOrderController {
      * @param orderSn 订单编号
      * @return 操作结果
      */
+    @Operation(summary = "订单发货", description = "校验订单和支付状态后发货")
     @PutMapping("/deliver")
-    public Result<?> deliver(@RequestParam String orderSn) {
+    public Result<?> deliver(@Parameter(description = "订单编号", required = true) @RequestParam String orderSn) {
         try {
             orderService.deliverOrder(orderSn);
             return Result.success("发货成功");
@@ -219,8 +233,9 @@ public class OmsOrderController {
      * @param orderSn 订单编号
      * @return 操作结果
      */
+    @Operation(summary = "确认收货", description = "用户确认收货，订单状态更新为已完成")
     @PutMapping("/confirm/receive")
-    public Result<?> confirmReceive(@RequestParam String orderSn) {
+    public Result<?> confirmReceive(@Parameter(description = "订单编号", required = true) @RequestParam String orderSn) {
         try {
             orderService.confirmReceive(orderSn);
             return Result.success("确认收货成功");
@@ -236,6 +251,7 @@ public class OmsOrderController {
      * @param dto 订单信息
      * @return 操作结果
      */
+    @Operation(summary = "更新订单", description = "仅允许更新收货信息，订单未发货时才可修改")
     @PutMapping("/update")
     public Result<String> update(@RequestBody @Validated OmsOrderUpdateDTO dto) {
         OmsOrder order = omsOrderService.getById(dto.getId());
@@ -265,8 +281,9 @@ public class OmsOrderController {
      * @param id 订单ID
      * @return 操作结果
      */
+    @Operation(summary = "删除订单", description = "逻辑删除订单，只能删除已完成或已取消的订单")
     @DeleteMapping("/{id}")
-    public Result<?> delete(@PathVariable Long id) {
+    public Result<?> delete(@Parameter(description = "订单ID", required = true) @PathVariable Long id) {
         OmsOrder order = omsOrderService.getById(id);
         if (order == null) {
             return Result.error("订单不存在");
@@ -288,8 +305,9 @@ public class OmsOrderController {
      * @param userId 用户ID
      * @return 订单列表
      */
+    @Operation(summary = "根据用户ID查询订单", description = "查询指定用户的所有订单，按创建时间倒序")
     @GetMapping("/user/{userId}")
-    public Result<List<OmsOrder>> listByUserId(@PathVariable Long userId) {
+    public Result<List<OmsOrder>> listByUserId(@Parameter(description = "用户ID", required = true) @PathVariable Long userId) {
         LambdaQueryWrapper<OmsOrder> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OmsOrder::getUserId, userId)
                 .orderByDesc(OmsOrder::getCreateTime);
@@ -302,6 +320,7 @@ public class OmsOrderController {
      *
      * @return 状态列表
      */
+    @Operation(summary = "查询订单状态枚举", description = "获取所有订单状态枚举值")
     @GetMapping("/status/list")
     public Result<List<OrderStatus>> getOrderStatusList() {
         return Result.success(Arrays.asList(OrderStatus.values()));
@@ -312,6 +331,7 @@ public class OmsOrderController {
      *
      * @return 状态列表
      */
+    @Operation(summary = "查询支付状态枚举", description = "获取所有支付状态枚举值")
     @GetMapping("/pay-status/list")
     public Result<List<PayStatus>> getPayStatusList() {
         return Result.success(Arrays.asList(PayStatus.values()));
@@ -322,6 +342,7 @@ public class OmsOrderController {
      *
      * @return 支付方式列表
      */
+    @Operation(summary = "查询支付方式枚举", description = "获取所有支付方式枚举值")
     @GetMapping("/pay-type/list")
     public Result<List<PayType>> getPayTypeList() {
         return Result.success(Arrays.asList(PayType.values()));
