@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.smartmallbackend.mapper.OmsCartItemMapper">
+
+    <resultMap id="BaseResultMap" type="org.example.smartmallbackend.entity.OmsCartItem">
+        <id property="id" column="id" />
+        <result property="userId" column="user_id" />
+        <result property="spuId" column="spu_id" />
+        <result property="skuId" column="sku_id" />
+        <result property="spuName" column="spu_name" />
+        <result property="skuPic" column="sku_pic" />
+        <result property="skuPrice" column="sku_price" />
+        <result property="quantity" column="quantity" />
+        <result property="skuAttrs" column="sku_attrs" />
+        <result property="isDeleted" column="is_deleted" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,order_id,order_sn,spu_id,sku_id,spu_name,
+        sku_pic,sku_price,quantity,sku_attrs,is_deleted,create_time,update_time
+    </sql>
+</mapper>

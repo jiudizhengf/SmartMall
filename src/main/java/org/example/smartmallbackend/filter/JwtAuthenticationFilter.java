@@ -26,8 +26,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         // 1. 获取 Authorization 头
         String authHeader = request.getHeader("Authorization");
-        log.info("🔍 请求路径: {}", request.getRequestURI());
-        log.info("🔍 Authorization头: {}", authHeader);
         // 2. 判断是否存在且格式正确 (Bearer xxx)
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7); // 去掉 "Bearer "
