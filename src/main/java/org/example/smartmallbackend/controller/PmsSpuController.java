@@ -10,8 +10,10 @@ import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.dto.PmsSpuSaveDTO;
 import org.example.smartmallbackend.dto.PmsSpuUpdateDTO;
 import org.example.smartmallbackend.entity.PmsSpu;
+import org.example.smartmallbackend.event.ProductOnShelfEvent;
 import org.example.smartmallbackend.service.PmsSpuService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,6 +33,8 @@ public class PmsSpuController {
 
     @Autowired
     private PmsSpuService pmsSpuService;
+    @Autowired
+    private ApplicationContext applicationContext;
 
     /**
      * 分页查询商品SPU列表
@@ -151,11 +155,11 @@ public class PmsSpuController {
     public Result<?> publish(@Parameter(description = "SPU ID", required = true) @PathVariable Long id) {
         PmsSpu spu = new PmsSpu();
         spu.setId(id);
-        if(spu.getPublishStatus() == 1) {
-            return Result.success("商品已上架");
-        }
         spu.setPublishStatus(1);
         boolean success = pmsSpuService.updateById(spu);
+        if(success){
+            applicationContext.publishEvent(new ProductOnShelfEvent(this, id));
+        }
         return success ? Result.success("上架成功") : Result.error("上架失败");
     }
 
@@ -170,9 +174,6 @@ public class PmsSpuController {
     public Result<?> unpublish(@Parameter(description = "SPU ID", required = true) @PathVariable Long id) {
         PmsSpu spu = new PmsSpu();
         spu.setId(id);
-        if(spu.getPublishStatus() == 0) {
-            return Result.success("商品已下架");
-        }
         spu.setPublishStatus(0);
         boolean success = pmsSpuService.updateById(spu);
         return success ? Result.success("下架成功") : Result.error("下架失败");
