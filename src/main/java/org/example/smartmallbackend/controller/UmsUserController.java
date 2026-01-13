@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.entity.UmsUser;
 import org.example.smartmallbackend.service.UmsUserService;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "用户管理", description = "用户的增删改查接口")
 @RestController
 @RequestMapping("/api/ums/user")
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class UmsUserController {
     private final UmsUserService umsUserService;
     private final PasswordEncoder passwordEncoder;

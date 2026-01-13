@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.entity.OmsCartItem;
 import org.example.smartmallbackend.entity.PmsSku;
@@ -20,7 +21,7 @@ import java.util.List;
 @Tag(name = "购物车管理", description = "购物车项的增删改查接口")
 @RestController
 @RequestMapping("/api/oms/cart")
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class OmsCartItemController {
     private final OmsCartItemService omsCartItemService;
     private final PmsSpuService spuService;
