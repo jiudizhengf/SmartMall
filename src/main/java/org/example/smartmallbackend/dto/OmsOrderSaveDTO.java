@@ -76,6 +76,9 @@ public class OmsOrderSaveDTO implements Serializable {
     @NotEmpty(message = "订单明细不能为空")
     private List<OrderItemDTO> orderItems;
 
+    @Schema(description = "购物车项ID列表（如果是从购物车下单，请传入）")
+    private List<Long> cartItemIds;
+
     /**
      * 订单明细DTO
      */

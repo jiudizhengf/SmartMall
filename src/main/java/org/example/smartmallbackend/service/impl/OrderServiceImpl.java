@@ -10,10 +10,7 @@ import org.example.smartmallbackend.entity.PmsSku;
 import org.example.smartmallbackend.enums.OrderStatus;
 import org.example.smartmallbackend.enums.PayStatus;
 import org.example.smartmallbackend.enums.PayType;
-import org.example.smartmallbackend.service.IOrderService;
-import org.example.smartmallbackend.service.OmsOrderItemService;
-import org.example.smartmallbackend.service.OmsOrderService;
-import org.example.smartmallbackend.service.PmsSkuService;
+import org.example.smartmallbackend.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +37,9 @@ public class OrderServiceImpl implements IOrderService {
 
     @Autowired
     private PmsSkuService pmsSkuService;
+
+    @Autowired
+    private OmsCartItemService cartItemService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -109,19 +109,24 @@ public class OrderServiceImpl implements IOrderService {
         List<OmsOrderItem> orderItems = new ArrayList<>();
         for (OmsOrderSaveDTO.OrderItemDTO itemDto : dto.getOrderItems()) {
             OmsOrderItem item = new OmsOrderItem();
+            PmsSku skuItem = pmsSkuService.getById(itemDto.getSkuId());
             item.setOrderId(order.getId());
             item.setOrderSn(order.getOrderSn());
             item.setSpuId(itemDto.getSpuId());
             item.setSkuId(itemDto.getSkuId());
             item.setSpuName(itemDto.getSpuName());
-            item.setSkuPic(itemDto.getSkuPic());
-            item.setSkuPrice(itemDto.getSkuPrice());
+            item.setSkuPic(skuItem.getPicUrl());
+            item.setSkuPrice(skuItem.getPrice());
             item.setQuantity(itemDto.getQuantity());
-            item.setSkuAttrs(itemDto.getSkuAttrs());
+            item.setSkuAttrs(skuItem.getSpecData());
             orderItems.add(item);
         }
         omsOrderItemService.saveBatch(orderItems);
 
+        // 5. 清空购物车(从购物车下单的情况)
+        if(dto.getCartItemIds()!=null&&!dto.getCartItemIds().isEmpty()){
+            cartItemService.removeByIds(dto.getCartItemIds());
+        }
         return order.getOrderSn();
     }
 
