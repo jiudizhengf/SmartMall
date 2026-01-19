@@ -10,8 +10,10 @@ import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.dto.PmsSkuSaveDTO;
 import org.example.smartmallbackend.dto.PmsSkuUpdateDTO;
 import org.example.smartmallbackend.entity.PmsSku;
+import org.example.smartmallbackend.entity.PmsSpu;
 import org.example.smartmallbackend.service.PmsSkuService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +34,8 @@ public class PmsSkuController {
     @Autowired
     private PmsSkuService pmsSkuService;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
     /**
      * 分页查询商品SKU列表
      *
@@ -90,6 +94,16 @@ public class PmsSkuController {
         PmsSku sku = pmsSkuService.getById(id);
         if (sku == null) {
             return Result.error("商品SKU不存在");
+        }
+        //查询实时库存
+        String stockStr= stringRedisTemplate.opsForValue().get("sku:stock:" + id);
+        if(stockStr!=null){
+            sku.setStock(Integer.parseInt(stockStr));
+        }else{
+            //缓存中没有则从数据库读取并缓存
+            PmsSku dbsku=pmsSkuService.getByIdFromDb(id);
+            sku.setStock(dbsku.getStock());
+            stringRedisTemplate.opsForValue().set("sku:stock:" + id, dbsku.getStock().toString());
         }
         return Result.success(sku);
     }
