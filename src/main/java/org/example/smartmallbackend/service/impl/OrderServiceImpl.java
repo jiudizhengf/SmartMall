@@ -11,14 +11,18 @@ import org.example.smartmallbackend.enums.OrderStatus;
 import org.example.smartmallbackend.enums.PayStatus;
 import org.example.smartmallbackend.enums.PayType;
 import org.example.smartmallbackend.service.*;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 订单业务服务实现类
@@ -40,94 +44,127 @@ public class OrderServiceImpl implements IOrderService {
 
     @Autowired
     private OmsCartItemService cartItemService;
+    @Autowired
+    private RedissonClient redissonClient;
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public String createOrder(OmsOrderSaveDTO dto) {
-        // 1. 校验并计算金额
-        BigDecimal calculatedTotalAmount = BigDecimal.ZERO;
-        for (OmsOrderSaveDTO.OrderItemDTO itemDto : dto.getOrderItems()) {
-            // 校验商品是否存在
-            PmsSku sku = pmsSkuService.getById(itemDto.getSkuId());
-            if (sku == null) {
-                throw new BusinessException("商品不存在，SKU ID: " + itemDto.getSkuId());
-            }
-
-            // 校验商品是否已下架
-            if (sku.getIsDeleted() == 1) {
-                throw new BusinessException("商品已下架: " + sku.getName());
-            }
-
-            // 校验库存
-            if (sku.getStock() < itemDto.getQuantity()) {
-                throw new BusinessException("商品库存不足: " + sku.getName() + "，当前库存: " + sku.getStock());
-            }
-
-            // 校验价格是否一致（防止价格篡改）
-            if (sku.getPrice().compareTo(itemDto.getSkuPrice()) != 0) {
-                throw new BusinessException("商品价格已发生变化，请重新下单: " + sku.getName());
-            }
-
-            // 累计金额
-            calculatedTotalAmount = calculatedTotalAmount.add(
-                    sku.getPrice().multiply(new BigDecimal(itemDto.getQuantity()))
-            );
+        //准备锁
+        List<RLock> locks = new ArrayList<>();
+        for(OmsOrderSaveDTO.OrderItemDTO item:dto.getOrderItems()){
+            RLock lock = redissonClient.getLock("product:lock:"+item.getSkuId());
+            locks.add(lock);
         }
+        //联锁,所有商品库存一起锁
+        RLock multiLock = redissonClient.getMultiLock(locks.toArray(new RLock[0]));
+        try{
+            //加锁
+            boolean isLocked = multiLock.tryLock(3,30, TimeUnit.SECONDS);
+            if(!isLocked){
+                throw new BusinessException("当前抢购人数过多，请稍后再试");
+            }
+            return transactionTemplate.execute(status -> {
+                try{
+                    // 1. 校验并计算金额
+                    BigDecimal calculatedTotalAmount = BigDecimal.ZERO;
+                    for (OmsOrderSaveDTO.OrderItemDTO itemDto : dto.getOrderItems()) {
+                        // 校验商品是否存在
+                        PmsSku sku = pmsSkuService.getById(itemDto.getSkuId());
+                        if (sku == null) {
+                            throw new BusinessException("商品不存在，SKU ID: " + itemDto.getSkuId());
+                        }
 
-        // 校验订单金额
-        if (dto.getTotalAmount().compareTo(calculatedTotalAmount) != 0) {
-            throw new BusinessException("订单金额不正确，请重新确认");
-        }
+                        // 校验商品是否已下架
+                        if (sku.getIsDeleted() == 1) {
+                            throw new BusinessException("商品已下架: " + sku.getName());
+                        }
 
-        // 2. 锁定库存（使用数据库行锁，防止超卖）
-        for (OmsOrderSaveDTO.OrderItemDTO itemDto : dto.getOrderItems()) {
-            boolean stockUpdated = pmsSkuService.lambdaUpdate()
-                    .eq(PmsSku::getId, itemDto.getSkuId())
-                    .ge(PmsSku::getStock, itemDto.getQuantity())
-                    .setSql("stock = stock - " + itemDto.getQuantity())
-                    .update();
-            if (!stockUpdated) {
-                throw new BusinessException("库存锁定失败，请重试");
+                        // 校验库存
+                        if (sku.getStock() < itemDto.getQuantity()) {
+                            throw new BusinessException("商品库存不足: " + sku.getName() + "，当前库存: " + sku.getStock());
+                        }
+
+                        // 校验价格是否一致（防止价格篡改）
+                        if (sku.getPrice().compareTo(itemDto.getSkuPrice()) != 0) {
+                            throw new BusinessException("商品价格已发生变化，请重新下单: " + sku.getName());
+                        }
+
+                        // 累计金额
+                        calculatedTotalAmount = calculatedTotalAmount.add(
+                                sku.getPrice().multiply(new BigDecimal(itemDto.getQuantity()))
+                        );
+                    }
+
+                    // 校验订单金额
+                    if (dto.getTotalAmount().compareTo(calculatedTotalAmount) != 0) {
+                        throw new BusinessException("订单金额不正确，请重新确认");
+                    }
+
+                    // 2. 锁定库存（使用数据库行锁，防止超卖）
+                    for (OmsOrderSaveDTO.OrderItemDTO itemDto : dto.getOrderItems()) {
+                        boolean stockUpdated = pmsSkuService.lambdaUpdate()
+                                .eq(PmsSku::getId, itemDto.getSkuId())
+                                .ge(PmsSku::getStock, itemDto.getQuantity())
+                                .setSql("stock = stock - " + itemDto.getQuantity())
+                                .update();
+                        if (!stockUpdated) {
+                            throw new BusinessException("扣减库存失败");
+                        }
+                    }
+
+                    // 3. 创建订单
+                    OmsOrder order = new OmsOrder();
+                    order.setOrderSn(generateOrderSn());
+                    order.setUserId(dto.getUserId());
+                    order.setTotalAmount(dto.getTotalAmount());
+                    order.setPayAmount(dto.getPayAmount());
+                    order.setStatus(OrderStatus.PENDING_PAYMENT.getCode());
+                    order.setPayStatus(PayStatus.UNPAID.getCode());
+                    order.setReceiverName(dto.getReceiverName());
+                    order.setReceiverPhone(dto.getReceiverPhone());
+                    order.setReceiverAddress(dto.getReceiverAddress());
+                    order.setCreateTime(LocalDateTime.now());
+                    omsOrderService.save(order);
+
+                    // 4. 创建订单明细
+                    List<OmsOrderItem> orderItems = new ArrayList<>();
+                    for (OmsOrderSaveDTO.OrderItemDTO itemDto : dto.getOrderItems()) {
+                        OmsOrderItem item = new OmsOrderItem();
+                        PmsSku skuItem = pmsSkuService.getById(itemDto.getSkuId());
+                        item.setOrderId(order.getId());
+                        item.setOrderSn(order.getOrderSn());
+                        item.setSpuId(itemDto.getSpuId());
+                        item.setSkuId(itemDto.getSkuId());
+                        item.setSpuName(itemDto.getSpuName());
+                        item.setSkuPic(skuItem.getPicUrl());
+                        item.setSkuPrice(skuItem.getPrice());
+                        item.setQuantity(itemDto.getQuantity());
+                        item.setSkuAttrs(skuItem.getSpecData());
+                        orderItems.add(item);
+                    }
+                    omsOrderItemService.saveBatch(orderItems);
+
+                    // 5. 清空购物车(从购物车下单的情况)
+                    if(dto.getCartItemIds()!=null&&!dto.getCartItemIds().isEmpty()){
+                        cartItemService.removeByIds(dto.getCartItemIds());
+                    }
+                    return order.getOrderSn();
+                }catch (Exception e){
+                    status.setRollbackOnly();
+                    throw e;
+                }
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException("服务器繁忙，请稍后再试");
+        }finally {
+            //释放锁
+            if(multiLock.isHeldByCurrentThread()){
+                multiLock.unlock();
             }
         }
-
-        // 3. 创建订单
-        OmsOrder order = new OmsOrder();
-        order.setOrderSn(generateOrderSn());
-        order.setUserId(dto.getUserId());
-        order.setTotalAmount(dto.getTotalAmount());
-        order.setPayAmount(dto.getPayAmount());
-        order.setStatus(OrderStatus.PENDING_PAYMENT.getCode());
-        order.setPayStatus(PayStatus.UNPAID.getCode());
-        order.setReceiverName(dto.getReceiverName());
-        order.setReceiverPhone(dto.getReceiverPhone());
-        order.setReceiverAddress(dto.getReceiverAddress());
-        order.setCreateTime(LocalDateTime.now());
-        omsOrderService.save(order);
-
-        // 4. 创建订单明细
-        List<OmsOrderItem> orderItems = new ArrayList<>();
-        for (OmsOrderSaveDTO.OrderItemDTO itemDto : dto.getOrderItems()) {
-            OmsOrderItem item = new OmsOrderItem();
-            PmsSku skuItem = pmsSkuService.getById(itemDto.getSkuId());
-            item.setOrderId(order.getId());
-            item.setOrderSn(order.getOrderSn());
-            item.setSpuId(itemDto.getSpuId());
-            item.setSkuId(itemDto.getSkuId());
-            item.setSpuName(itemDto.getSpuName());
-            item.setSkuPic(skuItem.getPicUrl());
-            item.setSkuPrice(skuItem.getPrice());
-            item.setQuantity(itemDto.getQuantity());
-            item.setSkuAttrs(skuItem.getSpecData());
-            orderItems.add(item);
-        }
-        omsOrderItemService.saveBatch(orderItems);
-
-        // 5. 清空购物车(从购物车下单的情况)
-        if(dto.getCartItemIds()!=null&&!dto.getCartItemIds().isEmpty()){
-            cartItemService.removeByIds(dto.getCartItemIds());
-        }
-        return order.getOrderSn();
     }
 
     @Override
