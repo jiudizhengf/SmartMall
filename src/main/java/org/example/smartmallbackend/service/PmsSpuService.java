@@ -2,6 +2,7 @@ package org.example.smartmallbackend.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import org.example.smartmallbackend.entity.PmsSpu;
+import org.springframework.cache.annotation.Cacheable;
 
 /**
  * 商品SPU Service接口
@@ -12,4 +13,8 @@ import org.example.smartmallbackend.entity.PmsSpu;
  */
 public interface PmsSpuService extends IService<PmsSpu> {
 
+    @Cacheable(value = "pmsSpuCache", key = "#id",unless = "#result == null")
+    PmsSpu getById(Long id);
+
+    boolean removeById(Long id);
 }
