@@ -61,6 +61,8 @@ public class RedisConfig {
         configMap.put("pms:spu", defaultConf.entryTtl(Duration.ofHours(2)));
         //库存信息 (pms:sku) 缓存 30 分钟
         configMap.put("pms:sku", defaultConf.entryTtl(Duration.ofMinutes(30)));
+        //用户信息
+        configMap.put("ums:user", defaultConf.entryTtl(Duration.ofHours(24)));
         // 3. 构建 CacheManager
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(defaultConf)
