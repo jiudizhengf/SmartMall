@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.smartmallbackend.entity.PmsSku;
 import org.example.smartmallbackend.entity.PmsSpu;
 import org.example.smartmallbackend.event.ProductOnShelfEvent;
+import org.example.smartmallbackend.service.EmbeddingStoreService;
 import org.example.smartmallbackend.service.PmsSkuService;
 import org.example.smartmallbackend.service.PmsSpuService;
 
@@ -19,7 +20,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,6 +36,9 @@ public class ProductAiListener {
 
     @Autowired
     private EmbeddingStore<TextSegment> embeddingStore;
+
+    @Autowired
+    private EmbeddingStoreService embeddingStoreService;
 
     @Async
     @EventListener
@@ -68,5 +71,22 @@ public class ProductAiListener {
         embeddingStore.add(embedding,textSegment);
         log.info("完成商品向量化存储spuId:{}",spuId);
 
+    }
+
+    @Async
+    @EventListener
+    public void handleProductOffShelf(ProductOnShelfEvent event) {
+        Long spuId = event.getSpuId();
+        log.info("开始处理商品下架向量删除spuId:{}",spuId);
+        // 从向量库删除
+        // 利用 metadata 字段进行模糊匹配删除
+        // 存储时的 metadata 类似于: {"spuId": "1001", "brand": "Xiaomi"...}
+        boolean removed=embeddingStoreService.remove(new LambdaQueryWrapper<org.example.smartmallbackend.entity.EmbeddingStore>()
+                .like(org.example.smartmallbackend.entity.EmbeddingStore::getMetadata, "\"spuId\":\"" + spuId + "\""));
+        if(removed){
+            log.info("完成商品下架向量删除spuId:{}",spuId);
+        }else{
+            log.warn("未找到对应商品向量进行删除，spuId:{}", spuId);
+        }
     }
 }

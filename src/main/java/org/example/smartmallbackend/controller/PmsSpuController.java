@@ -11,6 +11,7 @@ import org.example.smartmallbackend.dto.PmsSpuSaveDTO;
 import org.example.smartmallbackend.dto.PmsSpuUpdateDTO;
 import org.example.smartmallbackend.entity.PmsSpu;
 import org.example.smartmallbackend.event.ProductOnShelfEvent;
+import org.example.smartmallbackend.event.ProductionOffShelfEvent;
 import org.example.smartmallbackend.service.PmsSpuService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -128,6 +129,9 @@ public class PmsSpuController {
     @DeleteMapping("/{id}")
     public Result<?> delete(@Parameter(description = "SPU ID", required = true) @PathVariable Long id) {
         boolean success = pmsSpuService.removeById(id);
+        if(success){
+            applicationContext.publishEvent(new ProductionOffShelfEvent(this, id));
+        }
         return success ? Result.success("删除成功") : Result.error("删除失败");
     }
 
@@ -141,6 +145,11 @@ public class PmsSpuController {
     @DeleteMapping("/batch")
     public Result<?> deleteBatch(@RequestBody List<Long> ids) {
         boolean success = pmsSpuService.removeByIds(ids);
+        if(success){
+            for(Long id : ids){
+                applicationContext.publishEvent(new ProductionOffShelfEvent(this, id));
+            }
+        }
         return success ? Result.success("批量删除成功") : Result.error("批量删除失败");
     }
 
@@ -176,6 +185,9 @@ public class PmsSpuController {
         spu.setId(id);
         spu.setPublishStatus(0);
         boolean success = pmsSpuService.updateById(spu);
+        if(success){
+            applicationContext.publishEvent(new ProductionOffShelfEvent(this, id));
+        }
         return success ? Result.success("下架成功") : Result.error("下架失败");
     }
 
