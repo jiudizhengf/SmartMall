@@ -95,16 +95,6 @@ public class PmsSkuController {
         if (sku == null) {
             return Result.error("商品SKU不存在");
         }
-        //查询实时库存
-        String stockStr= stringRedisTemplate.opsForValue().get("sku:stock:" + id);
-        if(stockStr!=null){
-            sku.setStock(Integer.parseInt(stockStr));
-        }else{
-            //缓存中没有则从数据库读取并缓存
-            PmsSku dbsku=pmsSkuService.getByIdFromDb(id);
-            sku.setStock(dbsku.getStock());
-            stringRedisTemplate.opsForValue().set("sku:stock:" + id, dbsku.getStock().toString());
-        }
         return Result.success(sku);
     }
 
