@@ -1,24 +1,29 @@
 package org.example.smartmallbackend.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.smartmallbackend.common.Result;
+import org.example.smartmallbackend.config.RabbitMqConfig;
 import org.example.smartmallbackend.dto.PmsSpuSaveDTO;
 import org.example.smartmallbackend.dto.PmsSpuUpdateDTO;
 import org.example.smartmallbackend.entity.PmsSpu;
 import org.example.smartmallbackend.event.ProductOnShelfEvent;
 import org.example.smartmallbackend.event.ProductionOffShelfEvent;
 import org.example.smartmallbackend.service.PmsSpuService;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 商品SPU管理Controller
@@ -36,6 +41,9 @@ public class PmsSpuController {
     private PmsSpuService pmsSpuService;
     @Autowired
     private ApplicationContext applicationContext;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     /**
      * 分页查询商品SPU列表
@@ -116,6 +124,13 @@ public class PmsSpuController {
     public Result<String> update(@RequestBody @Validated PmsSpuUpdateDTO dto) {
         PmsSpu spu = BeanUtil.copyProperties(dto, PmsSpu.class);
         boolean success = pmsSpuService.updateById(spu);
+        if(success && spu.getPublishStatus() != null){
+            if(spu.getPublishStatus()==1){
+                sendAiSyncMessage(spu.getId(),"UP");
+            }else{
+                sendAiSyncMessage(spu.getId(),"DOWN");
+            }
+        }
         return success ? Result.success("更新成功") : Result.error("更新失败");
     }
 
@@ -130,7 +145,7 @@ public class PmsSpuController {
     public Result<?> delete(@Parameter(description = "SPU ID", required = true) @PathVariable Long id) {
         boolean success = pmsSpuService.removeById(id);
         if(success){
-            applicationContext.publishEvent(new ProductionOffShelfEvent(this, id));
+            sendAiSyncMessage(id,"DOWN");
         }
         return success ? Result.success("删除成功") : Result.error("删除失败");
     }
@@ -147,7 +162,7 @@ public class PmsSpuController {
         boolean success = pmsSpuService.removeByIds(ids);
         if(success){
             for(Long id : ids){
-                applicationContext.publishEvent(new ProductionOffShelfEvent(this, id));
+                sendAiSyncMessage(id,"DOWN");
             }
         }
         return success ? Result.success("批量删除成功") : Result.error("批量删除失败");
@@ -167,7 +182,7 @@ public class PmsSpuController {
         spu.setPublishStatus(1);
         boolean success = pmsSpuService.updateById(spu);
         if(success){
-            applicationContext.publishEvent(new ProductOnShelfEvent(this, id));
+            sendAiSyncMessage(id,"UP");
         }
         return success ? Result.success("上架成功") : Result.error("上架失败");
     }
@@ -186,7 +201,7 @@ public class PmsSpuController {
         spu.setPublishStatus(0);
         boolean success = pmsSpuService.updateById(spu);
         if(success){
-            applicationContext.publishEvent(new ProductionOffShelfEvent(this, id));
+            sendAiSyncMessage(id,"DOWN");
         }
         return success ? Result.success("下架成功") : Result.error("下架失败");
     }
@@ -204,5 +219,17 @@ public class PmsSpuController {
                 .orderByDesc(PmsSpu::getCreateTime);
         List<PmsSpu> list = pmsSpuService.list(wrapper);
         return Result.success(list);
+    }
+    // --- 辅助方法：发送 MQ 消息 ---
+    private void sendAiSyncMessage(Long spuId, String type) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("spuId", spuId);
+        map.put("type", type);
+        // 发送 JSON 字符串
+        rabbitTemplate.convertAndSend(
+                RabbitMqConfig.PRODUCT_EVENT_EXCHANGE,
+                RabbitMqConfig.PRODUCT_AI_ROUTING_KEY,
+                JSONUtil.toJsonStr(map)
+        );
     }
 }

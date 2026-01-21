@@ -7,13 +7,42 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMqConfig {
     public static final String ORDER_EVENT_EXCHANGE = "order.event.exchange";
-    public static final String ORDER_DELAY_QUEUE = "order.delay.queue";
+    public static final String ORDER_DELAY_QUEUE = "order.delay.queue.30min";
     public static final String ORDER_DELAY_ROUTING_KEY = "order.delay";
 
     public static final String ORDER_DLX_EXCHANGE = "order.dlx.exchange";
     public static final String ORDER_CANCEL_QUEUE = "order.cancel.queue";
     public static final String ORDER_CANCEL_ROUTING_KEY = "order.cancel";
 
+    public static final String PRODUCT_EVENT_EXCHANGE = "product.event.exchange"; // 商品交换机
+    public static final String PRODUCT_AI_SYNC_QUEUE = "product.ai.sync.queue";   // AI同步队列
+    public static final String PRODUCT_AI_ROUTING_KEY = "product.ai.sync";        // 路由键
+    /**
+     * 定义 AI 同步队列
+     */
+    @Bean
+    public Queue productAiSyncQueue() {
+        // durable=true 持久化，保证 RabbitMQ 重启消息不丢
+        return new Queue(PRODUCT_AI_SYNC_QUEUE, true);
+    }
+
+    /**
+     * 定义商品交换机
+     */
+    @Bean
+    public DirectExchange productEventExchange() {
+        return new DirectExchange(PRODUCT_EVENT_EXCHANGE);
+    }
+
+    /**
+     * 绑定：AI 队列 -> 商品交换机
+     */
+    @Bean
+    public Binding productAiSyncBinding() {
+        return BindingBuilder.bind(productAiSyncQueue())
+                .to(productEventExchange())
+                .with(PRODUCT_AI_ROUTING_KEY);
+    }
     /**
      * 定义取消队列(实际被消费者监听的队列)
      */
