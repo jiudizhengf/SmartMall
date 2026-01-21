@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.smartmallbackend.entity.PmsSku;
 import org.example.smartmallbackend.entity.PmsSpu;
 import org.example.smartmallbackend.event.ProductOnShelfEvent;
+import org.example.smartmallbackend.event.ProductionOffShelfEvent;
 import org.example.smartmallbackend.service.EmbeddingStoreService;
 import org.example.smartmallbackend.service.PmsSkuService;
 import org.example.smartmallbackend.service.PmsSpuService;
@@ -20,6 +21,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -52,12 +54,33 @@ public class ProductAiListener {
             return;
         }
         List<PmsSku> skuList=pmsSkuService.list(new LambdaQueryWrapper<PmsSku>().eq(PmsSku::getSpuId,spuId));
-        //构建prompt
-        String skuInfo = skuList.stream()
-                .map(sku->String.format("%s (价格：%.2f)", sku.getName(),sku.getPrice()))
+        // 1. 计算价格区间 (让AI知道这个商品大概多少钱，防止把几块钱的手机壳推荐给搜手机的人)
+        BigDecimal minPrice = skuList.stream().map(PmsSku::getPrice).min(BigDecimal::compareTo).orElse(spu.getPrice());
+        BigDecimal maxPrice = skuList.stream().map(PmsSku::getPrice).max(BigDecimal::compareTo).orElse(spu.getPrice());
+
+        // 2. 提取规格特征 (把所有SKU的特性都拼进来，比如 "黑色 256G", "白色 512G")
+        String skuKeywords = skuList.stream()
+                .map(sku -> sku.getName() + " " + sku.getSpecData()) // 这里把 specData JSON 也拼进去，增加特征
                 .collect(Collectors.joining("; "));
-        String textToEmbed = String.format("商品名称：%s\n副标题：%s\n商品描述：%s\n可选规格：%s",
-                spu.getName(), spu.getSubTitle(), spu.getDescription(), skuInfo);
+
+        // 3. 🔥 核心优化：构建高密度的语义文本模板
+        // 格式化文本，像写 SEO 文章一样，把品牌、分类、特性都显式列出来
+        String textToEmbed = String.format("""
+                商品类型：电商商品
+                品牌：%s
+                商品名称：%s
+                核心卖点：%s
+                详细描述：%s
+                价格范围：%.0f - %.0f 元
+                包含规格：%s
+                """,
+                spu.getBrandName(),
+                spu.getName(),
+                spu.getSubTitle(),
+                spu.getDescription(), // 这里的描述越详细，搜索越准
+                minPrice, maxPrice,
+                skuKeywords
+        );
         //准备元数据
         Metadata metadata = new Metadata();
         metadata.add("spuId", spuId.toString());
@@ -75,14 +98,17 @@ public class ProductAiListener {
 
     @Async
     @EventListener
-    public void handleProductOffShelf(ProductOnShelfEvent event) {
+    public void handleProductOffShelf(ProductionOffShelfEvent event) {
         Long spuId = event.getSpuId();
         log.info("开始处理商品下架向量删除spuId:{}",spuId);
         // 从向量库删除
         // 利用 metadata 字段进行模糊匹配删除
         // 存储时的 metadata 类似于: {"spuId": "1001", "brand": "Xiaomi"...}
-        boolean removed=embeddingStoreService.remove(new LambdaQueryWrapper<org.example.smartmallbackend.entity.EmbeddingStore>()
-                .like(org.example.smartmallbackend.entity.EmbeddingStore::getMetadata, "\"spuId\":\"" + spuId + "\""));
+        String jsonCondition = String.format("{\"spuId\": \"%s\"}", spuId);
+        boolean removed=embeddingStoreService.remove(
+                new LambdaQueryWrapper<org.example.smartmallbackend.entity.EmbeddingStore>()
+                .apply("metadata @> {0}::jsonb", jsonCondition)
+        );
         if(removed){
             log.info("完成商品下架向量删除spuId:{}",spuId);
         }else{
