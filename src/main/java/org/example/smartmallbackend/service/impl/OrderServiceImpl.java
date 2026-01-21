@@ -2,7 +2,9 @@ package org.example.smartmallbackend.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import lombok.extern.slf4j.Slf4j;
 import org.example.smartmallbackend.common.BusinessException;
+import org.example.smartmallbackend.config.RabbitMqConfig;
 import org.example.smartmallbackend.dto.OmsOrderSaveDTO;
 import org.example.smartmallbackend.entity.OmsOrder;
 import org.example.smartmallbackend.entity.OmsOrderItem;
@@ -13,6 +15,7 @@ import org.example.smartmallbackend.enums.PayType;
 import org.example.smartmallbackend.service.*;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +33,7 @@ import java.util.concurrent.TimeUnit;
  * @author smart-mall-backend
  * @description 处理订单核心业务逻辑，包括库存锁定、支付处理、状态流转等
  */
+@Slf4j
 @Service
 public class OrderServiceImpl implements IOrderService {
 
@@ -48,6 +52,8 @@ public class OrderServiceImpl implements IOrderService {
     private RedissonClient redissonClient;
     @Autowired
     private TransactionTemplate transactionTemplate;
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
 
     @Override
     public String createOrder(OmsOrderSaveDTO dto) {
@@ -65,7 +71,7 @@ public class OrderServiceImpl implements IOrderService {
             if(!isLocked){
                 throw new BusinessException("当前抢购人数过多，请稍后再试");
             }
-            return transactionTemplate.execute(status -> {
+            String orderSn = transactionTemplate.execute(status -> {
                 try{
                     // 1. 校验并计算金额
                     BigDecimal calculatedTotalAmount = BigDecimal.ZERO;
@@ -156,6 +162,18 @@ public class OrderServiceImpl implements IOrderService {
                     throw e;
                 }
             });
+            //事务提交成功后，发送延迟消息
+            // 发送到 order.event.exchange，路由键为 order.delay
+            if (orderSn != null) {
+                rabbitTemplate.convertAndSend(
+                        RabbitMqConfig.ORDER_EVENT_EXCHANGE,
+                        RabbitMqConfig.ORDER_DELAY_ROUTING_KEY,
+                        orderSn // 消息内容就是订单号
+                );
+            }
+            log.info("订单创建成功，已发送延迟取消消息，OrderSn: {}", orderSn);
+
+            return orderSn;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BusinessException("服务器繁忙，请稍后再试");
