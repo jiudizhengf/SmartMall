@@ -1,6 +1,7 @@
 package org.example.smartmallbackend.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.service.HomeService;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/home")
 @RequiredArgsConstructor
+@Tag(name = "首页内容管理", description = "获取首页轮播图、推荐商品等内容")
 public class HomeController {
     private final HomeService homeService;
 

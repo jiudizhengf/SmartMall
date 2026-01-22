@@ -2,6 +2,7 @@ package org.example.smartmallbackend.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.example.smartmallbackend.common.Result;
 import org.example.smartmallbackend.entity.PmsSpu;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
+@Tag(name="AI搜索接口",description = "基于AI的商品搜索推荐接口")
 public class AiController {
     private final AiSearchService aiSearchService;
     @Operation(summary = "AI搜索接口",description = "输入自然语言（如：适合送给女朋友的礼物），返回推荐商品")

@@ -17,6 +17,31 @@ public class RabbitMqConfig {
     public static final String PRODUCT_EVENT_EXCHANGE = "product.event.exchange"; // 商品交换机
     public static final String PRODUCT_AI_SYNC_QUEUE = "product.ai.sync.queue";   // AI同步队列
     public static final String PRODUCT_AI_ROUTING_KEY = "product.ai.sync";        // 路由键
+
+    // 在 RabbitMqConfig 类中追加：
+
+    // ================= 秒杀业务配置 =================
+
+    public static final String SECKILL_EXCHANGE = "seckill.exchange";
+    public static final String SECKILL_QUEUE = "seckill.order.queue";
+    public static final String SECKILL_ROUTING_KEY = "seckill.order";
+
+    @Bean
+    public Queue seckillQueue() {
+        return new Queue(SECKILL_QUEUE, true); // 持久化队列
+    }
+
+    @Bean
+    public DirectExchange seckillExchange() {
+        return new DirectExchange(SECKILL_EXCHANGE);
+    }
+
+    @Bean
+    public Binding seckillBinding() {
+        return BindingBuilder.bind(seckillQueue())
+                .to(seckillExchange())
+                .with(SECKILL_ROUTING_KEY);
+    }
     /**
      * 定义 AI 同步队列
      */
